@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Tp_1_DMB.iml" filepath="$PROJECT_DIR$/.idea/modules/Tp_1_DMB.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Tp_1_DMB.Tp_1_DMB-build.iml" filepath="$PROJECT_DIR$/.idea/modules/Tp_1_DMB.Tp_1_DMB-build.iml" />
+    </modules>
+  </component>
+</project>
