@@ -13,6 +13,7 @@ object GraphXExample {
     val sc = spark.sparkContext
 
     // Exemple de création d'un graphe
+    //
     val vertices = sc.parallelize(Seq(
       (1L, ("A")),
       (2L, ("B")),
