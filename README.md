@@ -162,3 +162,90 @@ Conclusion pour la question 7 :
 
 ## C. Score des joueurs
 
+### 1.  Partager et analyser l’affirmation
+
+La fonction de score sera basée sur les règles suivantes :
+
+* 50 points par assistance (assists),
+* 1 point par dommage causé (damage_dealt),
+* 100 points par élimination (kills),
+* 1000 points pour la 1re position, 990 pour la 2ᵉ, etc.
+
+Fonction Scala :
+```scala
+def calculateScore(kills: Int, assists: Int, damageDealt: Double, placement: Int): Double = {
+  val placementScore = 1000 - (placement - 1) * 10 // Ex : 1ère place = 1000, 2e place = 990, etc.
+  val score = (kills * 100) + (assists * 50) + damageDealt + placementScore
+  score
+}
+```
+
+### 2. Comparez ce classement avec les deux précédents critères
+
+```scala
+import org.apache.spark.sql.SparkSession
+
+object PlayerScoreAnalysis {
+  def main(args: Array[String]): Unit = {
+    val spark = SparkSession.builder
+      .appName("PUBG Player Score Analysis")
+      .master("local[*]")
+      .getOrCreate()
+
+    val sc = spark.sparkContext
+
+    // Charger le fichier CSV
+    val filePath = "src/main/resources/agg_match_stats_0_100000.csv"
+    val data = sc.textFile(filePath)
+
+    // Ignorer la première ligne (en-tête)
+    val header = data.first()
+    val rows = data.filter(line => line != header)
+
+    // Fonction pour calculer le score
+    def calculateScore(kills: Int, assists: Int, damageDealt: Double, placement: Int): Double = {
+      val placementScore = 1000 - (placement - 1) * 10 // Score décroissant en fonction du placement
+      val score = (kills * 100) + (assists * 50) + damageDealt + placementScore
+      score
+    }
+
+    // Extraire les stats des joueurs et calculer leur score
+    val playerScores = rows.map { line =>
+      val cols = line.split(",")
+      val playerName = cols(0) // Colonne avec le nom du joueur
+      val kills = cols(5).toInt // Colonne avec les kills
+      val assists = cols(6).toInt // Colonne avec les assists
+      val damageDealt = cols(7).toDouble // Colonne avec les dommages infligés
+      val placement = cols(10).toInt // Colonne avec le placement
+
+      val score = calculateScore(kills, assists, damageDealt, placement)
+      (playerName, score)
+    }
+
+    // Agréger les scores par joueur
+    val aggregatedScores = playerScores.reduceByKey(_ + _)
+
+    // Obtenir les 10 meilleurs joueurs selon le score
+    val top10PlayersByScore = aggregatedScores
+      .sortBy({ case (_, score) => score }, ascending = false)
+      .take(10)
+
+    // Afficher les résultats
+    println("Top 10 joueurs par score (avec leurs noms) :")
+    top10PlayersByScore.foreach { case (playerName, score) =>
+      println(s"Nom: $playerName, Score total: $score")
+    }
+
+    spark.stop()
+  }
+}
+
+```
+Le resultat obtenu : 
+` 
+
+`
+Comparaison avec les classements précédents :
+
+
+
