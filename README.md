@@ -1,6 +1,6 @@
 # TP1 DMB
 
-## 2. Préparation du jeu de données
+## A. Préparation du jeu de données
 
 ### 1 Décompresser le jeu de données dans l'espace de travail 
 (C'est fait)
@@ -56,7 +56,7 @@ ajouter dans le code précedent cet bout de code :
     println(s"Un échantillon de 100 000 lignes a été créé et sauvegardé dans $sampleFilePath.")
 ```
 
-## 3. Les meilleurs joueurs
+## B. Les meilleurs joueurs
 
 
 
