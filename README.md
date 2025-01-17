@@ -242,9 +242,7 @@ object PlayerScoreAnalysis {
 
 ```
 Le resultat obtenu : 
-` 
-
-`
+` `
 Comparaison avec les classements précédents :
 
 
