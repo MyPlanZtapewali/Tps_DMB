@@ -212,11 +212,11 @@ object PlayerScoreAnalysis {
     // Extraire les stats des joueurs et calculer leur score
     val playerScores = rows.map { line =>
       val cols = line.split(",")
-      val playerName = cols(0) // Colonne avec le nom du joueur
-      val kills = cols(5).toInt // Colonne avec les kills
-      val assists = cols(6).toInt // Colonne avec les assists
-      val damageDealt = cols(7).toDouble // Colonne avec les dommages infligés
-      val placement = cols(10).toInt // Colonne avec le placement
+      val playerName = cols(11) // Colonne avec le nom du joueur
+      val kills = cols(10).toInt // Colonne avec les kills
+      val assists = cols(5).toInt // Colonne avec les assists
+      val damageDealt = cols(9).toDouble // Colonne avec les dommages infligés
+      val placement = cols(14).toInt // Colonne avec le placement
 
       val score = calculateScore(kills, assists, damageDealt, placement)
       (playerName, score)
