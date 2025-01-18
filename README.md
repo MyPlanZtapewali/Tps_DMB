@@ -471,3 +471,18 @@ Enfin on l'affiche :
 println(s"Temps sans persistance : $timeWithoutPersist ms")
 println(s"Temps avec persistance : $timeWithPersist ms")
 ```
+
+### 5. Observation des gains de performance
+
+Résultats des temps d'exécution avec et sans persistance
+
+| Exécution | Temps sans persistance (ms) | Temps avec persistance (ms) | Gain (%) |
+|-----------|------------------------------|-----------------------------|----------|
+| 1         | 19407                        | 7512                        | 61.29    |
+| 2         | 18429                        | 7818                        | 57.57    |
+| 3         | 14987                        | 7022                        | 53.16    |
+| **Moyenne** | **17608**                  | **7450.67**                 | **57.67** |
+
+* La persistance avec MEMORY_AND_DISK permet d'améliorer significativement les performances pour des opérations répétées sur un jeu de données volumineux.
+* Les résultats démontrent un gain moyen de 57.67 % sur les temps d'exécution.
+
