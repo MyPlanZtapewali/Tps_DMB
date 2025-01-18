@@ -304,12 +304,13 @@ Observations :
 
 ### a. Impact des kills et de la position :
 
-* Le classement par score est plus équilibré, car il prend en compte plusieurs aspects du jeu :
-** Kills (100 points chacun),
-** Assists (50 points chacun),
-** Dommages infligés,
-** Position (score décroissant avec le rang).
-* Les joueurs avec beaucoup de kills dominent toujours, mais ceux avec de bonnes positions (comme ChanronG) restent compétitifs.
+Le classement par score est plus équilibré, car il prend en compte plusieurs aspects du jeu :
+* Kills (100 points chacun),
+* Assists (50 points chacun),
+* Dommages infligés,
+* Position (score décroissant avec le rang).
+
+Les joueurs avec beaucoup de kills dominent toujours, mais ceux avec de bonnes positions (comme ChanronG) restent compétitifs.
 
 ### b. Joueur anonyme ("") :
 
@@ -323,3 +324,150 @@ Observations :
 
 * Le système par score est plus complet, car il considère à la fois la survie (position) et l’agressivité (kills, assists, dommages).
 * Cependant, il peut introduire un biais en favorisant les joueurs ayant participé à un grand nombre de parties, indépendamment de leur efficacité.
+
+
+## D.Persistance (Bonus)
+
+### 1. Obtenir les meilleurs joueurs et le nombre total de joueurs distincts
+
+``` scala
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.storage.StorageLevel
+
+object PlayerPersistenceAnalysis {
+  def main(args: Array[String]): Unit = {
+    val spark = SparkSession.builder
+      .appName("PUBG Player Persistence Analysis")
+      .master("local[*]")
+      .getOrCreate()
+
+    val sc = spark.sparkContext
+
+    // Charger le fichier CSV
+    val filePath = "src/main/resources/agg_match_stats_0.csv"
+    val data = sc.textFile(filePath)
+
+    // Ignorer la première ligne (en-tête)
+    val header = data.first()
+    val rows = data.filter(line => line != header)
+
+    // Extraire les noms des joueurs et calculer leurs scores
+    val playerScores = rows.map { line =>
+      val cols = line.split(",")
+      val playerName = cols(11) // Colonne avec le nom du joueur
+      val kills = cols(10).toInt // Colonne avec les kills
+      val assists = cols(5).toInt // Colonne avec les assists
+      val damageDealt = cols(9).toDouble // Colonne avec les dommages infligés
+      val placement = cols(14).toInt // Colonne avec le placement
+
+      val score = (kills * 100) + (assists * 50) + damageDealt + (1000 - (placement - 1) * 10)
+      (playerName, score)
+    }
+
+    // Agréger les scores par joueur
+    val aggregatedScores = playerScores.reduceByKey(_ + _)
+
+    // Obtenir les joueurs distincts
+    val distinctPlayers = aggregatedScores.map(_._1).distinct()
+
+    // Persister l'état pour éviter de recalculer
+    aggregatedScores.persist(StorageLevel.MEMORY_AND_DISK)
+    distinctPlayers.persist(StorageLevel.MEMORY_AND_DISK)
+
+    // Obtenir les 10 meilleurs joueurs
+    val top10Players = aggregatedScores
+      .sortBy({ case (_, score) => score }, ascending = false)
+      .take(10)
+
+    // Obtenir le nombre total de joueurs distincts
+    val totalDistinctPlayers = distinctPlayers.count()
+
+    // Afficher les résultats
+    println("Top 10 joueurs par score :")
+    top10Players.foreach { case (playerName, score) =>
+      println(s"Nom: $playerName, Score total: $score")
+    }
+
+    println(s"Nombre total de joueurs distincts : $totalDistinctPlayers")
+
+    spark.stop()
+  }
+}
+```
+Dans mon code, j'affiche les 10 meilleurs joueurs
+
+| Rang | Nom              | Score total       |
+|------|------------------|-------------------|
+| 1    | (Anonyme)        | 1.9887563E7      |
+| 2    | JZalan           | 325508.0         |
+| 3    | hzxiaobin        | 314060.0         |
+| 4    | feitengdedan     | 288572.0         |
+| 5    | VanThang         | 253637.0         |
+| 6    | Slh_Bunny        | 253529.0         |
+| 7    | Matthew_wang     | 252402.0         |
+| 8    | coolcarey        | 246109.0         |
+| 9    | GoAheadTry2Run   | 235714.0         |
+| 10   | sora3            | 228109.0         |
+
+Ensuite j'affiche le nombre de joueurs distincts dans le fichier .CSV : `Nombre total de joueurs distincts : 4269508`
+
+### 2. Choix du mode de persistance
+
+Mon choix s'est orienté sur le mode : MEMORY_AND_DISK
+
+Pourquoi ce choix ?
+ * Si les données ne tiennent pas entièrement en mémoire, elles sont partiellement écrites sur le disque, ce qui évite une perte en cas de surcharge mémoire.
+ * Cela garantit une bonne performance tout en restant robuste pour de grands ensembles de données (comme ici, 2 Go).
+
+### 3. Appliquer la persistance
+
+Dans le code, la méthode suivante a été utilisée pour persister les données :
+```scala
+aggregatedScores.persist(StorageLevel.MEMORY_AND_DISK)
+distinctPlayers.persist(StorageLevel.MEMORY_AND_DISK)
+```
+
+*`aggregatedScores :` Les scores agrégés par joueur sont souvent utilisés pour obtenir le classement et les joueurs distincts. Les persister évite de recalculer ces données à chaque action.
+*`distinctPlayers :` Les noms des joueurs distincts sont extraits des scores. La persistance réduit les recalculs nécessaires pour cette opération.
+
+### 4. Mesurer les temps d’exécution
+
+Ajoutons une méthode pour mesurer les temps de calcul avec et sans persistance.
+Avant tout ne pas oublier de faire l'important de la librairie qui permet la gestion du temps: `import java.time.Instant`
+ensuite ajouter la fonction de mésure du temps : 
+```scala
+// Fonction pour mesurer le temps
+def time[R](block: => R): (R, Long) = {
+  val start = Instant.now.toEpochMilli
+  val result = block
+  val end = Instant.now.toEpochMilli
+  (result, end - start)
+}
+```
+
+Ensuite faire le calcul avec ou sans persistance : 
+```scala
+// Sans persistance
+val (resultWithoutPersist, timeWithoutPersist) = time {
+  val top10 = aggregatedScores.sortBy({ case (_, score) => score }, ascending = false).take(10)
+  val totalPlayers = distinctPlayers.count()
+  (top10, totalPlayers)
+}
+
+// Avec persistance
+val (resultWithPersist, timeWithPersist) = time {
+  aggregatedScores.persist(StorageLevel.MEMORY_AND_DISK)
+  distinctPlayers.persist(StorageLevel.MEMORY_AND_DISK)
+
+  val top10 = aggregatedScores.sortBy({ case (_, score) => score }, ascending = false).take(10)
+  val totalPlayers = distinctPlayers.count()
+  (top10, totalPlayers)
+}
+```
+
+Enfin on l'affiche : 
+
+```scala
+println(s"Temps sans persistance : $timeWithoutPersist ms")
+println(s"Temps avec persistance : $timeWithPersist ms")
+```
