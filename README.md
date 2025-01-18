@@ -219,19 +219,30 @@ object PlayerScoreAnalysis {
       val placement = cols(14).toInt // Colonne avec le placement
 
       val score = calculateScore(kills, assists, damageDealt, placement)
-      (playerName, score)
+      (playerName, (score, 1)) // (Nom du joueur, (Score, 1 Partie))
     }
 
-    // Agréger les scores par joueur
-    val aggregatedScores = playerScores.reduceByKey(_ + _)
+    // Agréger les scores et les parties jouées par joueur
+    val aggregatedScores = playerScores
+      .reduceByKey { (a, b) =>
+        val totalScore = a._1 + b._1 // Somme des scores
+        val totalGames = a._2 + b._2 // Somme des parties jouées
+        (totalScore, totalGames)
+      }
+
+    // Filtrer les joueurs ayant joué au moins 4 parties
+    val filteredScores = aggregatedScores.filter { case (_, (_, totalGames)) =>
+      totalGames >= 4
+    }
 
     // Obtenir les 10 meilleurs joueurs selon le score
-    val top10PlayersByScore = aggregatedScores
+    val top10PlayersByScore = filteredScores
+      .mapValues { case (totalScore, _) => totalScore } // On ne garde que le score total
       .sortBy({ case (_, score) => score }, ascending = false)
       .take(10)
 
     // Afficher les résultats
-    println("Top 10 joueurs par score (avec leurs noms) :")
+    println("Top 10 joueurs par score (avec leurs noms, ayant joué au moins 4 parties) :")
     top10PlayersByScore.foreach { case (playerName, score) =>
       println(s"Nom: $playerName, Score total: $score")
     }
@@ -239,11 +250,75 @@ object PlayerScoreAnalysis {
     spark.stop()
   }
 }
-
 ```
-Le resultat obtenu : 
-` `
+
+
+
 Comparaison avec les classements précédents :
 
+#### a. Classement par position (système initial) :
 
+Top 3 :
+* ChanronG (Moyenne de position : 9.0, Parties jouées : 4)
+* JustTuatuatua (Moyenne de position : 10.75, Parties jouées : 4)
+* dman4771 (Moyenne de position : 11.5, Parties jouées : 4)
 
+Observations :
+* Les joueurs ayant une position moyenne basse (proche de 1) dominent ce classement, ce qui reflète leur capacité à survivre plus longtemps.
+* Les joueurs classés ici ne prennent pas nécessairement en compte leurs kills, assists ou dommages infligés.
+
+#### b. Classement par kills (système initial) :
+
+Top 3 :
+* LawngD-a-w-n-g (Moyenne des kills : 2.2, Parties jouées : 5)
+* siliymaui125 (Moyenne des kills : 2.0, Parties jouées : 4)
+* Dcc-ccD (Moyenne des kills : 1.75, Parties jouées : 4)
+
+Observations :
+* Ce classement met en avant les joueurs les plus agressifs et actifs dans les parties (meilleur ratio kills/partie).
+* La performance de survie (position) n’est pas prise en compte ici.
+
+#### c. Classement par score (nouveau système) :
+
+Top 3 :
+* Joueur anonyme ("") (Score total : 140698.0, Parties jouées : 142)
+* LawngD-a-w-n-g (Score total : 6153.0, Parties jouées : 5)
+* Dcc-ccD (Score total : 5249.0, Parties jouées : 4)
+
+Observations :
+* Le joueur anonyme domine ce classement, principalement parce qu'il a participé à 142 parties, accumulant un grand score malgré des moyennes faibles dans les kills et positions. Cela reflète un avantage pour les joueurs réguliers.
+* LawngD-a-w-n-g reste en bonne position, confirmant que ses kills élevés et sa participation à plusieurs parties influencent positivement son score.
+* ChanronG, leader du classement par position, est maintenant 7ᵉ, ce qui montre que sa performance en kills, assists et dégâts est moins marquante que sa capacité à bien se placer.
+
+| Joueur          | Moyenne de position | Moyenne de kills | Score total | Classement par position | Classement par kills | Classement par score |
+|------------------|---------------------|------------------|-------------|--------------------------|-----------------------|-----------------------|
+| LawngD-a-w-n-g  | Non classé          | 2.2              | 6153.0      | Non classé               | 1                     | 2                     |
+| siliymaui125     | 22.75              | 2.0              | 4731.0      | 9                        | 2                     | 5                     |
+| Dcc-ccD          | 14.5               | 1.75             | 5249.0      | 7                        | 3                     | 3                     |
+| dman4771         | 11.5               | 1.75             | 4861.0      | 3                        | 4                     | 4                     |
+| ChanronG         | 9.0                | Non classé       | 4510.0      | 1                        | Non classé            | 7                     |
+| JustTuatuatua    | 10.75              | 0.75             | 4693.0      | 2                        | 9                     | 6                     |
+
+### Conclusion : 
+
+### a. Impact des kills et de la position :
+
+* Le classement par score est plus équilibré, car il prend en compte plusieurs aspects du jeu :
+** Kills (100 points chacun),
+** Assists (50 points chacun),
+** Dommages infligés,
+** Position (score décroissant avec le rang).
+* Les joueurs avec beaucoup de kills dominent toujours, mais ceux avec de bonnes positions (comme ChanronG) restent compétitifs.
+
+### b. Joueur anonyme ("") :
+
+* Ce joueur bénéficie de sa forte participation (142 parties) pour accumuler des points, même avec des performances individuelles modestes (kills et position).
+
+### c. Effet de la participation :
+
+* Le système de points favorise les joueurs constants et actifs, comme le joueur anonyme. Cela peut désavantager les joueurs très performants mais ayant joué peu de parties.
+
+### d. Conclusion générale :
+
+* Le système par score est plus complet, car il considère à la fois la survie (position) et l’agressivité (kills, assists, dommages).
+* Cependant, il peut introduire un biais en favorisant les joueurs ayant participé à un grand nombre de parties, indépendamment de leur efficacité.
