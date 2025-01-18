@@ -1,6 +1,6 @@
 import org.apache.spark.sql.SparkSession
 
-object PlayerAnalysis {
+object part_2 {
   def main(args: Array[String]): Unit = {
     val spark = SparkSession.builder
       .appName("PUBG Player Analysis")

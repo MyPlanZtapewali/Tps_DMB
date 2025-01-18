@@ -1,7 +1,7 @@
 import org.apache.spark.sql.SparkSession
 import java.io._
 
-object LineCount {
+object part_1 {
   def main(args: Array[String]): Unit = {
     val spark = SparkSession.builder
       .appName("Line Count")
