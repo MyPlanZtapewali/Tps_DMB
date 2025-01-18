@@ -107,3 +107,100 @@ ____
 
 ## B. Calcul de degré
 
+### 1. Extraire le sous-graphe
+
+L'objectif est de filtrer le graphe initial pour ne conserver que les trajets dont les horaires (startTime, endTime) sont compris entre le 05-12-2021 et le 25-12-2021.
+
+````scala
+// Définir les bornes temporelles en millisecondes (Epoch)
+val startEpoch = timeToLong("2021-12-05 00:00:00")
+val endEpoch = timeToLong("2021-12-25 23:59:59")
+
+// Extraire le sous-graphe
+val subgraph = graph.subgraph(
+  edge => edge.attr.startTime >= startEpoch && edge.attr.endTime <= endEpoch
+)
+````
+``subgraph :`` Un graphe contenant uniquement les trajets (arêtes) dont les horaires respectent les bornes spécifiées.
+
+### 2. Calculer les degrés et Afficher les 10 stations avec le plus de trajets
+
+> ### Calcul des degrés entrants et sortants
+> J'ai utilisé ``aggregateMessages`` pour calculer : 
+> * Le nombre de trajets sortants pour chaque station (degré sortant). 
+> * Le nombre de trajets entrants pour chaque station (degré entrant).
+>  ````scala
+>  // Calcul des degrés sortants (nombre de trajets sortants)
+>  val outDegrees = subgraph.aggregateMessages[Int](
+>  sendMsg = triplet => triplet.sendToSrc(1), // Incrémenter le compteur pour le noeud source
+>  mergeMsg = (a, b) => a + b                // Combiner les messages
+>  )
+>  // Calcul des degrés entrants (nombre de trajets entrants)
+>  val inDegrees = subgraph.aggregateMessages[Int]( 
+>  sendMsg = triplet => triplet.sendToDst(1), // Incrémenter le compteur pour le noeud destination 
+>  mergeMsg = (a, b) => a + b                // Combiner les messages
+>  )
+
+____
+
+> ### Afficher les 10 stations avec le plus de trajets entrants et sortants
+> Une fois les degrés calculés, je les ai triés pour afficher les 10 stations ayant le plus de trajets entrants et sortants. :
+> ````scala
+> // Top 10 des stations avec le plus de trajets sortants
+> println("Top 10 stations par trajets sortants :")
+> outDegrees.sortBy(_._2, ascending = false).take(10).foreach {
+> case (vertexId, count) => println(s"Station ID: $vertexId, Trajets sortants: $count")
+> }
+> 
+> // Top 10 des stations avec le plus de trajets entrants
+> println("Top 10 stations par trajets entrants :")
+> inDegrees.sortBy(_._2, ascending = false).take(10).foreach {
+> case (vertexId, count) => println(s"Station ID: $vertexId, Trajets entrants: $count")
+> }
+____
+
+
+
+Resultat après exécution du code :
+
+(Top 10 stations par trajets entrants)
+> Station ID: 70384220, Trajets entrants: 1640 
+
+> Station ID: 68508345, Trajets entrants: 1408 
+
+> Station ID: 68508344, Trajets entrants: 1149 
+
+> Station ID: 70384376, Trajets entrants: 1094 
+
+> Station ID: 70384224, Trajets entrants: 954 
+
+> Station ID: 68508348, Trajets entrants: 908 
+
+> Station ID: 70384407, Trajets entrants: 879 
+
+> Station ID: 68508346, Trajets entrants: 835 
+
+> Station ID: 70384223, Trajets entrants: 809 
+
+> Station ID: 70385181, Trajets entrants: 790
+
+(Top 10 stations par trajets sortants)
+> Station ID: 70384220, Trajets sortants: 1650
+
+> Station ID: 68508345, Trajets sortants: 1500
+
+> Station ID: 70384376, Trajets sortants: 1229
+
+> Station ID: 68508344, Trajets sortants: 1136
+
+> Station ID: 70384224, Trajets sortants: 929
+
+> Station ID: 70384407, Trajets sortants: 903
+
+> Station ID: 68508348, Trajets sortants: 864
+
+> Station ID: 68508346, Trajets sortants: 844
+
+> Station ID: 70384223, Trajets sortants: 819
+
+> Station ID: 68513151, Trajets sortants: 747
